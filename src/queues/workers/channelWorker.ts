@@ -18,10 +18,18 @@ export const channelSendWorker = new Worker<ChannelSendJob>(
     // Fetch the customer to check the email and variant for subject
     const log = await prisma.campaignLog.findUnique({
       where: { id: logId },
-      include: { customer: true, variant: true },
+      include: { customer: true, variant: true, campaign: true },
     });
 
-    if (!log) throw new Error(`CampaignLog ${logId} not found`);
+    if (!log) {
+      console.log(`[ChannelWorker] CampaignLog ${logId} not found (likely deleted due to cancellation). Skipping.`);
+      return { status: 'cancelled', reason: 'log_deleted' };
+    }
+
+    if (log.campaign.status === 'CANCELLED') {
+      console.log(`[ChannelWorker] Campaign ${campaignId} is cancelled. Skipping send.`);
+      return { status: 'cancelled', reason: 'campaign_cancelled' };
+    }
 
     const customer = log.customer;
     const variant = log.variant;
@@ -123,7 +131,7 @@ export const channelSendWorker = new Worker<ChannelSendJob>(
   },
   {
     connection: redisConnection,
-    concurrency: 20,
+    concurrency: 5,
   },
 );
 

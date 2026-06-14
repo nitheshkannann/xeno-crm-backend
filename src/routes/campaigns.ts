@@ -144,10 +144,22 @@ campaignsRouter.post('/:id/launch', async (c) => {
 
 // POST /campaigns/:id/cancel
 campaignsRouter.post('/:id/cancel', async (c) => {
+  const campaignId = c.req.param('id');
+  
+  // 1. Mark campaign as cancelled
   const campaign = await prisma.campaign.update({
-    where: { id: c.req.param('id') },
+    where: { id: campaignId },
     data: { status: 'CANCELLED' },
   });
+
+  // 2. Delete all unsent (QUEUED) logs to keep stats accurate
+  await prisma.campaignLog.deleteMany({
+    where: {
+      campaignId,
+      status: 'QUEUED',
+    },
+  });
+
   return c.json({ success: true, data: campaign });
 });
 

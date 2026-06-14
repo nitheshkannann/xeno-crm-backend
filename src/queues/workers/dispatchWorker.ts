@@ -104,7 +104,7 @@ export const campaignDispatchWorker = new Worker<CampaignDispatchJob>(
   },
   {
     connection: redisConnection,
-    concurrency: 5,
+    concurrency: 2,
   },
 );
 
