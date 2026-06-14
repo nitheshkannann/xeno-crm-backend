@@ -13,9 +13,12 @@ redis.on('error', (err: any) => console.error('❌ Redis error:', err));
 // which perfectly handles Upstash username/password/TLS automatically.
 export const createRedisConnection = () => {
   const parsedUrl = new URL(redisUrl);
-  return new Redis(redisUrl, {
-    maxRetriesPerRequest: null,
-    family: 0,
+  return {
+    host: parsedUrl.hostname,
+    port: parseInt(parsedUrl.port || '6379'),
+    username: parsedUrl.username || 'default',
+    password: parsedUrl.password || undefined,
     tls: parsedUrl.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
-  }) as any; 
+    maxRetriesPerRequest: null
+  } as any;
 };
