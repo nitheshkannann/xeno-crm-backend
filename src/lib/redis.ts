@@ -4,6 +4,7 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: null, // Required for BullMQ
+  family: 0, // Fixes Upstash ECONNRESET on Node 20+
   retryStrategy: (times: number) => Math.min(times * 100, 3000),
 });
 

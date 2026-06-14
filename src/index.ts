@@ -62,12 +62,12 @@ async function bootstrap() {
     await prisma.$connect();
     console.log('✅ Database connected');
 
-    // Start BullMQ workers
-    await initWorkers();
-    console.log('✅ Queue workers started');
+    // Start BullMQ workers (non-blocking)
+    initWorkers().catch(err => console.error('❌ Worker init failed:', err));
+    console.log('✅ Queue workers starting in background');
 
     // Start scheduler (monthly campaigns)
-    await initScheduler();
+    initScheduler();
     console.log('✅ Scheduler started');
 
     // Start HTTP server
