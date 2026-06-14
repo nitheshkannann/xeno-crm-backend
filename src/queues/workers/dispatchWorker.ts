@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { redisConnection } from '../../lib/redis.js';
+import { createRedisConnection() } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { channelSendQueue, QUEUES, type CampaignDispatchJob, type ChannelSendJob } from '../queues.js';
 
@@ -103,7 +103,7 @@ export const campaignDispatchWorker = new Worker<CampaignDispatchJob>(
     return { dispatched: channelJobs.length };
   },
   {
-    connection: redisConnection,
+    connection: createRedisConnection(),
     concurrency: 2,
   },
 );

@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { redisConnection } from '../lib/redis.js';
+import { createRedisConnection } from '../lib/redis.js';
 
 // Queue names (no colons allowed in BullMQ v5+)
 export const QUEUES = {
@@ -11,8 +11,8 @@ export const QUEUES = {
 } as const;
 
 // Queue definitions
-export const campaignDispatchQueue = new Queue(QUEUES.CAMPAIGN_DISPATCH, {
-  connection: redisConnection,
+export const campaignDispatchQueue = new Queue<CampaignDispatchJob>(QUEUES.CAMPAIGN_DISPATCH, {
+  connection: createRedisConnection(),
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: 'exponential', delay: 2000 },
@@ -21,8 +21,7 @@ export const campaignDispatchQueue = new Queue(QUEUES.CAMPAIGN_DISPATCH, {
   },
 });
 
-export const channelSendQueue = new Queue(QUEUES.CHANNEL_SEND, {
-  connection: redisConnection,
+  connection: createRedisConnection(),
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: 'exponential', delay: 1000 },
@@ -32,7 +31,7 @@ export const channelSendQueue = new Queue(QUEUES.CHANNEL_SEND, {
 });
 
 export const callbackProcessQueue = new Queue(QUEUES.CALLBACK_PROCESS, {
-  connection: redisConnection,
+  connection: createRedisConnection(),
   defaultJobOptions: {
     attempts: 5,
     backoff: { type: 'exponential', delay: 500 },
@@ -42,7 +41,7 @@ export const callbackProcessQueue = new Queue(QUEUES.CALLBACK_PROCESS, {
 });
 
 export const insightsGenerateQueue = new Queue(QUEUES.INSIGHTS_GENERATE, {
-  connection: redisConnection,
+  connection: createRedisConnection(),
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: 'fixed', delay: 5000 },
@@ -52,7 +51,7 @@ export const insightsGenerateQueue = new Queue(QUEUES.INSIGHTS_GENERATE, {
 });
 
 export const healthComputeQueue = new Queue(QUEUES.HEALTH_COMPUTE, {
-  connection: redisConnection,
+  connection: createRedisConnection(),
   defaultJobOptions: {
     attempts: 2,
     backoff: { type: 'fixed', delay: 10000 },
