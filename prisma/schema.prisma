@@ -1,0 +1,383 @@
+// This is your Prisma schema file
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(MARKETER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MARKETER
+}
+
+// ============================================================
+// CUSTOMERS
+// ============================================================
+
+model Customer {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  firstName          String
+  lastName           String
+  phone              String?
+  gender             Gender?
+  city               String?
+  state              String?
+  preferredCategory  String?
+  tags               String[]  @default([])
+
+  // RFM + Engagement metrics (computed by health score worker)
+  totalSpend         Float     @default(0)
+  orderCount         Int       @default(0)
+  avgOrderValue      Float     @default(0)
+  lastOrderDate      DateTime?
+  daysSinceLastOrder Int?
+
+  // Email engagement
+  emailOpenRate      Float     @default(0)  // 0.0 - 1.0
+  emailClickRate     Float     @default(0)  // 0.0 - 1.0
+
+  // Customer 360 Health Score
+  healthScore        Int       @default(0)  // 0 - 100
+  healthLabel        HealthLabel @default(CHURN_RISK)
+
+  // Timestamps
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  orders             Order[]
+  carts              Cart[]
+  segmentMemberships SegmentMembership[]
+  campaignLogs       CampaignLog[]
+
+  @@index([lastOrderDate])
+  @@index([totalSpend])
+  @@index([healthScore])
+  @@index([healthLabel])
+  @@index([city])
+  @@map("customers")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum HealthLabel {
+  HIGHLY_LOYAL
+  ACTIVE
+  AT_RISK
+  CHURN_RISK
+}
+
+// ============================================================
+// ORDERS
+// ============================================================
+
+model Order {
+  id         String      @id @default(cuid())
+  customerId String
+  campaignId String?
+  amount     Float
+  status     OrderStatus @default(DELIVERED)
+  items      Json        // [{name, category, price, qty}]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([customerId, createdAt])
+  @@index([campaignId])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+// ============================================================
+// CARTS
+// ============================================================
+
+model Cart {
+  id           String     @id @default(cuid())
+  customerId   String
+  items        Json       // [{name, category, price, qty, image}]
+  totalValue   Float
+  status       CartStatus @default(ACTIVE)
+  lastActiveAt DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([lastActiveAt])
+  @@map("carts")
+}
+
+enum CartStatus {
+  ACTIVE
+  ABANDONED
+  COMPLETED
+}
+
+// ============================================================
+// SEGMENTS
+// ============================================================
+
+model Segment {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  filterRules     Json      // { logic: 'AND'|'OR', rules: [...] }
+  customerCount   Int       @default(0)
+  isAutoScheduled Boolean   @default(false)
+  autoObjective   String?   // e.g. "retain inactive customers"
+  preferredChannel Channel  @default(EMAIL)
+  lastComputedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  memberships     SegmentMembership[]
+  campaigns       Campaign[]
+
+  @@map("segments")
+}
+
+model SegmentMembership {
+  customerId String
+  segmentId  String
+  addedAt    DateTime @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  segment    Segment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, segmentId])
+  @@index([segmentId])
+  @@map("segment_memberships")
+}
+
+// ============================================================
+// CAMPAIGNS
+// ============================================================
+
+model Campaign {
+  id              String         @id @default(cuid())
+  name            String
+  description     String?
+  segmentId       String
+  channel         Channel        @default(EMAIL)
+  status          CampaignStatus @default(DRAFT)
+  isAutoGenerated Boolean        @default(false)
+  scheduledAt     DateTime?
+  launchedAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  segment         Segment        @relation(fields: [segmentId], references: [id])
+  variants        CampaignVariant[]
+  logs            CampaignLog[]
+  insights        AIInsight[]
+  orders          Order[]
+  memoryRecords   MarketingMemory[]
+
+  @@index([status])
+  @@index([segmentId])
+  @@map("campaigns")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum Channel {
+  EMAIL
+  SMS
+  WHATSAPP
+  PUSH
+}
+
+model CampaignVariant {
+  id              String    @id @default(cuid())
+  campaignId      String
+  label           String    // "Discount", "Loyalty", "Urgency", "New Arrivals"
+  angle           String    // brief description
+  subject         String?   // email subject
+  body            String    // message template with {{variables}}
+  targetProfile   String?   // "price_sensitive", "high_spender" etc.
+  createdAt       DateTime  @default(now())
+
+  campaign        Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  logs            CampaignLog[]
+
+  @@index([campaignId])
+  @@map("campaign_variants")
+}
+
+model CampaignLog {
+  id           String      @id @default(cuid())
+  campaignId   String
+  customerId   String
+  variantId    String?
+  channel      Channel
+  status       LogStatus   @default(QUEUED)
+  idempotencyKey String    @unique
+  errorMessage String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  campaign     Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer     Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  variant      CampaignVariant? @relation(fields: [variantId], references: [id])
+  events       DeliveryEvent[]
+
+  @@index([campaignId, status])
+  @@index([customerId])
+  @@index([idempotencyKey])
+  @@map("campaign_logs")
+}
+
+enum LogStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  OPENED
+  READ
+  CLICKED
+  CONVERTED
+}
+
+model DeliveryEvent {
+  id              String      @id @default(cuid())
+  logId           String
+  eventType       EventType
+  idempotencyKey  String      @unique
+  metadata        Json?
+  occurredAt      DateTime    @default(now())
+
+  log             CampaignLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  @@index([logId, eventType])
+  @@index([occurredAt])
+  @@map("delivery_events")
+}
+
+enum EventType {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  OPENED
+  READ
+  CLICKED
+  CONVERTED
+}
+
+// ============================================================
+// AI LAYER
+// ============================================================
+
+model AIInsight {
+  id              String    @id @default(cuid())
+  campaignId      String
+  summary         String
+  insights        Json      // array of insight bullets
+  recommendations Json      // array of next action recommendations
+  metrics         Json      // open rate, click rate, conversion rate, etc.
+  createdAt       DateTime  @default(now())
+
+  campaign        Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("ai_insights")
+}
+
+model MarketingMemory {
+  id                  String    @id @default(cuid())
+  campaignId          String?
+  segmentCriteria     Json      // what the segment looked like
+  segmentDescription  String
+  channel             Channel
+  audienceSize        Int
+  openRate            Float     @default(0)
+  clickRate           Float     @default(0)
+  conversionRate      Float     @default(0)
+  revenueGenerated    Float     @default(0)
+  performanceLabel    String?   // "high", "medium", "low"
+  notes               String?   // AI-generated notes about what worked
+  embedding           Unsupported("vector(384)")?
+  createdAt           DateTime  @default(now())
+
+  campaign            Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([channel])
+  @@index([conversionRate])
+  @@map("marketing_memory")
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+
+// Analytics are computed from Campaign, CampaignLog, DeliveryEvent
+// Materialized views are created via raw SQL migration
+// The AnalyticsService reads from these views
+
+model AnalyticsSnapshot {
+  id              String    @id @default(cuid())
+  date            DateTime  @db.Date
+  totalCustomers  Int       @default(0)
+  activeCustomers Int       @default(0)
+  newCustomers    Int       @default(0)
+  campaignsSent   Int       @default(0)
+  messagesSent    Int       @default(0)
+  delivered       Int       @default(0)
+  opened          Int       @default(0)
+  clicked         Int       @default(0)
+  converted       Int       @default(0)
+  revenue         Float     @default(0)
+  createdAt       DateTime  @default(now())
+
+  @@unique([date])
+  @@index([date])
+  @@map("analytics_snapshots")
+}
