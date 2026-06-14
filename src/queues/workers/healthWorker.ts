@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { redisConnection } from '../../lib/redis.js';
+import { createRedisConnection } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { QUEUES, type HealthComputeJob } from '../queues.js';
 
@@ -105,7 +105,7 @@ export const healthComputeWorker = new Worker<HealthComputeJob>(
     return { updated };
   },
   {
-    connection: redisConnection,
+    connection: createRedisConnection(),
     concurrency: 3,
   },
 );

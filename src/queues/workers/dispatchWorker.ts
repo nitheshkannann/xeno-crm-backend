@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { createRedisConnection() } from '../../lib/redis.js';
+import { createRedisConnection } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { channelSendQueue, QUEUES, type CampaignDispatchJob, type ChannelSendJob } from '../queues.js';
 

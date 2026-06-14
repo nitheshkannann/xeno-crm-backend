@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { redisConnection } from '../../lib/redis.js';
+import { createRedisConnection } from '../../lib/redis.js';
 import { generateCampaignInsights } from '../../ai/InsightsEngine.js';
 import { QUEUES, type InsightsJob } from '../queues.js';
 
@@ -12,7 +12,7 @@ export const insightsWorker = new Worker<InsightsJob>(
     console.log(`[InsightsWorker] Insights saved for campaign ${campaignId}`);
   },
   {
-    connection: redisConnection,
+    connection: createRedisConnection(),
     concurrency: 2,
   },
 );

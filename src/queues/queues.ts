@@ -21,6 +21,7 @@ export const campaignDispatchQueue = new Queue<CampaignDispatchJob>(QUEUES.CAMPA
   },
 });
 
+export const channelSendQueue = new Queue<ChannelSendJob>(QUEUES.CHANNEL_SEND, {
   connection: createRedisConnection(),
   defaultJobOptions: {
     attempts: 3,

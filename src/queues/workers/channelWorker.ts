@@ -1,5 +1,5 @@
 import { Worker } from 'bullmq';
-import { createRedisConnection() } from '../../lib/redis.js';
+import { createRedisConnection } from '../../lib/redis.js';
 import { prisma } from '../../lib/prisma.js';
 import { callbackProcessQueue, insightsGenerateQueue, QUEUES, type ChannelSendJob, type CallbackJob } from '../queues.js';
 import { EmailService } from '../../services/EmailService.js';
