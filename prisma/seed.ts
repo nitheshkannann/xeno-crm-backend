@@ -139,11 +139,11 @@ async function main() {
   });
   console.log('👤 Created users: admin@xeno.com / admin123');
 
-  // Seed 1000 customers
-  console.log('👥 Seeding 1000 customers...');
+  // Seed 30 customers
+  console.log('👥 Seeding 30 customers...');
   const customerData: Parameters<typeof prisma.customer.create>[0]['data'][] = [];
 
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 30; i++) {
     const gender = Math.random() > 0.45 ? 'MALE' : Math.random() > 0.1 ? 'FEMALE' : 'OTHER';
     const firstName = gender === 'MALE'
       ? faker.helpers.arrayElement(['Rahul', 'Amit', 'Vijay', 'Suresh', 'Rajesh', 'Anil', 'Sanjay', 'Deepak', 'Manoj', 'Pradeep', 'Ravi', 'Arjun', 'Kiran', 'Naveen', 'Ashok'])
@@ -154,7 +154,15 @@ async function main() {
     const preferredCategory = faker.helpers.arrayElement(categories);
 
     // Determine customer archetype for realistic data
-    const archetype = Math.random();
+    let archetype = 0;
+    if (i < 10) {
+      // First 10: Active or Highly Loyal
+      archetype = Math.random() * 0.35;
+    } else {
+      // Remaining 20: At risk or churn risk
+      archetype = 0.35 + Math.random() * 0.65;
+    }
+    
     let daysSinceLastOrder: number;
     let orderCount: number;
     let totalSpend: number;
@@ -222,7 +230,7 @@ async function main() {
     const batch = customerData.slice(i, i + 100);
     await Promise.all(batch.map(data => prisma.customer.create({ data: data as Parameters<typeof prisma.customer.create>[0]['data'] })));
   }
-  console.log('✅ 1000 customers created');
+  console.log('✅ 30 customers created');
 
   // Seed orders (10 per customer avg)
   console.log('📦 Seeding orders...');
@@ -423,9 +431,9 @@ async function main() {
       where: { date },
       create: {
         date,
-        totalCustomers: 1000,
-        activeCustomers: faker.number.int({ min: 320, max: 380 }),
-        newCustomers: faker.number.int({ min: 0, max: 15 }),
+        totalCustomers: 30,
+        activeCustomers: faker.number.int({ min: 5, max: 15 }),
+        newCustomers: faker.number.int({ min: 0, max: 3 }),
         campaignsSent: faker.number.int({ min: 0, max: 3 }),
         messagesSent,
         delivered,
