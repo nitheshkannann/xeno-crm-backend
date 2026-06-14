@@ -11,7 +11,4 @@ const redis = new Redis(redisUrl, {
 redis.on('connect', () => console.log('✅ Redis connected'));
 redis.on('error', (err: any) => console.error('❌ Redis error:', err));
 
-export const redisConnection = {
-  host: new URL(redisUrl).hostname,
-  port: parseInt(new URL(redisUrl).port || '6379'),
-};
+export const redisConnection = redis;
