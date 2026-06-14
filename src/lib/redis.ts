@@ -12,8 +12,10 @@ redis.on('error', (err: any) => console.error('❌ Redis error:', err));
 // Creating a new Redis instance from the URL string relies on ioredis' built-in parser
 // which perfectly handles Upstash username/password/TLS automatically.
 export const createRedisConnection = () => {
+  const parsedUrl = new URL(redisUrl);
   return new Redis(redisUrl, {
     maxRetriesPerRequest: null,
     family: 0,
-  }) as any; // Cast to any to bypass strict BullMQ IORedis version mismatch
+    tls: parsedUrl.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
+  }) as any; 
 };
