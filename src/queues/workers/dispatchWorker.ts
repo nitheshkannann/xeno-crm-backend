@@ -109,7 +109,7 @@ export const campaignDispatchWorker = new Worker<CampaignDispatchJob>(
 );
 
 function assignVariant(
-  variants: { id: string; label: string; targetProfile?: string | null }[],
+  variants: { id: string; label: string; targetProfile?: string | null; body: string; subject?: string | null }[],
   customer: { totalSpend: number; healthLabel: string },
 ): (typeof variants)[0] | null {
   if (variants.length === 0) return null;
