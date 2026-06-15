@@ -2,8 +2,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// Use gemini-3.5-flash — has generous free tier quota
-const DEFAULT_MODEL = 'gemini-3.5-flash';
+// Use gemini-1.5-flash
+const DEFAULT_MODEL = 'gemini-1.5-flash';
 
 export async function generateStructured<T>(prompt: string, schema: object, modelName = DEFAULT_MODEL): Promise<T> {
   const model = genAI.getGenerativeModel({

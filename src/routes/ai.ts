@@ -36,20 +36,28 @@ aiRouter.post('/build-segment', async (c) => {
   const { prompt } = await c.req.json();
   if (!prompt) return c.json({ success: false, error: 'prompt required' }, 400);
 
-  const memoryContext = await getMemoryContext();
-  const result = await buildSegmentFromNL(prompt, memoryContext);
+  try {
+    const memoryContext = await getMemoryContext();
+    const result = await buildSegmentFromNL(prompt, memoryContext);
 
-  // Get preview count
-  const preview = await SegmentEngine.preview(result.filterRules);
+    // Get preview count
+    const preview = await SegmentEngine.preview(result.filterRules);
 
-  return c.json({
-    success: true,
-    data: {
-      ...result,
-      previewCount: preview.count,
-      sample: preview.sample,
-    },
-  });
+    return c.json({
+      success: true,
+      data: {
+        ...result,
+        previewCount: preview.count,
+        sample: preview.sample,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error building segment:', error);
+    if (error.message?.includes('429 Too Many Requests') || error.status === 429) {
+      return c.json({ success: false, error: 'AI rate limit exceeded. Please wait a moment and try again.' }, 429);
+    }
+    return c.json({ success: false, error: 'Failed to build segment. Please check AI service availability.' }, 500);
+  }
 });
 
 // POST /ai/write-campaign — generate message variants
@@ -58,19 +66,27 @@ aiRouter.post('/write-campaign', async (c) => {
   const { objective, channel, segmentId } = body;
   if (!objective || !channel) return c.json({ success: false, error: 'objective and channel required' }, 400);
 
-  let segmentDescription = 'General audience';
-  let segmentSize = 0;
+  try {
+    let segmentDescription = 'General audience';
+    let segmentSize = 0;
 
-  if (segmentId) {
-    const segment = await prisma.segment.findUnique({ where: { id: segmentId } });
-    if (segment) {
-      segmentDescription = segment.description || segment.name;
-      segmentSize = segment.customerCount;
+    if (segmentId) {
+      const segment = await prisma.segment.findUnique({ where: { id: segmentId } });
+      if (segment) {
+        segmentDescription = segment.description || segment.name;
+        segmentSize = segment.customerCount;
+      }
     }
-  }
 
-  const result = await generateCampaignVariants({ objective, channel, segmentDescription, segmentSize });
-  return c.json({ success: true, data: result });
+    const result = await generateCampaignVariants({ objective, channel, segmentDescription, segmentSize });
+    return c.json({ success: true, data: result });
+  } catch (error: any) {
+    console.error('Error writing campaign:', error);
+    if (error.message?.includes('429 Too Many Requests') || error.status === 429) {
+      return c.json({ success: false, error: 'AI rate limit exceeded. Please wait a moment and try again.' }, 429);
+    }
+    return c.json({ success: false, error: 'Failed to write campaign variants. Please check AI service availability.' }, 500);
+  }
 });
 
 // GET /ai/run-agent — SSE streaming multi-step agent
